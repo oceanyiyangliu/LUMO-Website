@@ -1,0 +1,59 @@
+name: Deploy LUMO site from Core
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout website repository
+        uses: actions/checkout@v6
+      - name: Checkout LUMO Core
+        uses: actions/checkout@v6
+        with:
+          repository: oceanyiyangliu/LUMO
+          ref: main
+          path: core
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: core/lumo-site/package-lock.json
+      - name: Install website dependencies
+        working-directory: core/lumo-site
+        run: npm ci
+      - name: Build static website
+        working-directory: core/lumo-site
+        env:
+          NEXT_PUBLIC_BASE_PATH: /LUMO-Website
+          NEXT_PUBLIC_LUMO_MAC_CHANNEL: preview
+        run: npm run build
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: core/lumo-site/out
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  verify:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report deployment
+        run: echo "LUMO website deployment completed through GitHub Pages."
